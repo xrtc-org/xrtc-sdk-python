@@ -13,6 +13,18 @@ from typing import Literal
 from pydantic import BaseSettings, BaseModel, Field
 
 
+class LoginCredentials(BaseSettings):
+    """Loging configuration."""
+
+    accountid: str = Field(..., env="ACCOUNT_ID")
+    apikey: str = Field(..., env="API_KEY")
+
+    class Config:
+        """Read configuration from default .env."""
+
+        env_file = "xrtc.env"
+
+
 class ConnectionConfiguration(BaseSettings):
     """Connection configuration."""
 
@@ -53,18 +65,6 @@ class ConnectionConfiguration(BaseSettings):
 
     # Duration the client will wait for the server to send a response and in between of the bytes, seconds
     requests_read: float = 10.0
-
-    class Config:
-        """Read configuration from default .env."""
-
-        env_file = "xrtc.env"
-
-
-class LoginCredentials(BaseSettings):
-    """Loging configuration."""
-
-    accountid: str = Field(..., env="ACCOUNT_ID")
-    apikey: str = Field(..., env="API_KEY")
 
     class Config:
         """Read configuration from default .env."""

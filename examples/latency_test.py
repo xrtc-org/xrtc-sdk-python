@@ -16,7 +16,7 @@ class LatencyTest:
         self.test_running = True
 
     async def setting(self):
-        """Set time co-routine."""
+        """Set time task."""
         async with AXRTC(env_file_credentials="xrtc_set.env") as xrtc:
             # Keep uploading items
             for counter in range(0, 100):
@@ -29,7 +29,7 @@ class LatencyTest:
         self.test_running = False
 
     async def getting(self):
-        """Get time co-routine."""
+        """Get time task."""
         mean = 0
         iteration = 0
         async with AXRTC(env_file_credentials="xrtc_get.env") as xrtc:
@@ -38,9 +38,7 @@ class LatencyTest:
                 # mode="watch" means wait until there is fresh item. Compare to mode="probe"
                 # cutoff=500 discards the items older than 500ms, e.g. from the previous run
                 # iterate through the items (a single request may bring several items)
-                async for item in xrtc.get_item(
-                    portals=[{"portalid": "latency"}], mode="stream", cutoff=500
-                ):
+                async for item in xrtc.get_item(portals=[{"portalid": "latency"}], mode="stream", cutoff=500):
                     received_time = json.loads(item.payload)["time"]
                     latency = round((time() - float(received_time)) * 1000, 1)
 
