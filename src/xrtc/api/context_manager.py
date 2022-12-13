@@ -21,24 +21,39 @@ from xrtc import (
 class XRTC:
     """Context manager (non-async) for XRTC: login and set/get API."""
 
-    def __init__(self, env_file_credentials: str = None, env_file_connection: str = None):
+    def __init__(
+        self,
+        account_id: str = None,
+        api_key: str = None,
+        env_file_credentials: str = None,
+        env_file_connection: str = None,
+    ):
         """
         Initialize connection and credentials.
 
         Connection credentials and URLs can be specified in .env files. If the file name does not contain the full path,
         then the work directory is assumed. If the file names are not specified, then "xrtc.env" is used by default.
-        The values in the files are overridden by environmental variables.
+        Account id and API key can be provided directly, overriding .env files.
+        Environmental variables override any other values.
 
         Parameters:
             env_file_credentials (str): .env file with connection credentials (account id, API key).
             env_file_connection (str): .env file with connection URLs (login, set and get item).
+            account_id (str): Account id for connection, overrides .env
+            api_key (str): API key for connection, overrides .env
         """
-        # Get credentials from .env file
         try:
+            # Get credentials from .env file
             if env_file_credentials is not None:
                 self._login_credentials = LoginCredentials(_env_file=env_file_credentials)
             else:
                 self._login_credentials = LoginCredentials()
+
+            if account_id is not None:
+                self._login_credentials.accountid = account_id
+
+            if api_key is not None:
+                self._login_credentials.apikey = api_key
 
             # Set connection configuration
             if env_file_connection is not None:

@@ -1,8 +1,8 @@
 # XRTC API
 [![xrtc](https://snyk.io/advisor/python/xrtc/badge.svg)](https://snyk.io/advisor/python/xrtc)
 
-XRTC is the next generation ultra-low latency TCP streaming protocol. It is up to 30x faster than
-LL HLS and RTMP, and it is on a par with WebRTC. Unlike UDP-based WebRTC, XRTC uses a pure
+XRTC is the next generation ultra-low latency TCP streaming protocol. It is 30-50x faster than
+LL-HLS and RTMP, and it is 2-5x faster than WebRTC. Unlike UDP-based WebRTC, XRTC uses a pure
 TCP/HTTP for ease of cross-firewall deployment and security.
 
 This is an SDK for XRTC API in Python. The SDK implements the following convenience features:
@@ -56,17 +56,11 @@ See more on [GitHub, examples directory](https://github.com/xrtc-org/xrtc-sdk-py
 
 Simple set and get:
 ```
-import os
-
 from xrtc import XRTC
 
-# Connection credentials from environment variables
 # Get your free account and API key from https://xrtc.org
-os.environ["ACCOUNT_ID"] = "AC0987654321012345"
-os.environ["API_KEY"] = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-with XRTC() as xrtc:
-    # Upload item
+with XRTC(account_id="AC0987654321012345", api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") as xrtc:
+    # Upload an item
     xrtc.set_item(items=[{"portalid": "exampleportal", "payload": "examplepayload"}])
 
     # Download items and iterate through them
@@ -76,20 +70,13 @@ with XRTC() as xrtc:
 
 The same example with the async context manager:
 ```
-import os
-
 from xrtc import AXRTC
 
-
+# To use async context manager, define an async function and run it
 async def main():
 
-    # Connection credentials from environment variables
     # Get your free account and API key from https://xrtc.org
-    os.environ["ACCOUNT_ID"] = "AC0987654321012345"
-    os.environ["API_KEY"] = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-    # Use async context manager
-    async with AXRTC() as xrtc:
+    async with AXRTC(account_id="AC0987654321012345", api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") as xrtc:
         # Upload an item
         await xrtc.set_item(items=[{"portalid": "exampleportal", "payload": "examplepayload"}])
 
