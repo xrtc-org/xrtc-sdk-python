@@ -1,5 +1,6 @@
 """Context manager (non-async) for XRTC: login and set/get API."""
 from typing import Iterable
+import logging
 
 import requests
 from pydantic import ValidationError
@@ -17,6 +18,9 @@ from xrtc import (
     XRTCException,
 )
 
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(asctime)s %(message)s")
+logger = logging.getLogger()
+
 
 class XRTC:
     """Context manager (non-async) for XRTC: login and set/get API."""
@@ -32,8 +36,8 @@ class XRTC:
         Initialize connection and credentials.
 
         Connection credentials and URLs can be specified in .env files. If the file name does not contain the full path,
-        then the work directory is assumed. If the file names are not specified, then "xrtc.env" is used by default.
-        Account id and API key can be provided directly, overriding .env files.
+        then the work directory is assumed. If the file names are not specified, then "xrtc.env" is used by default
+        for either of the files. Account id and API key can be provided directly, overriding credentials .env file.
         Environmental variables override any other values.
 
         Parameters:
@@ -43,23 +47,21 @@ class XRTC:
             api_key (str): API key for connection, overrides .env
         """
         try:
-            # Get credentials from .env file
-            if env_file_credentials is not None:
-                self._login_credentials = LoginCredentials(_env_file=env_file_credentials)
+            if account_id is not None and api_key is not None:
+                # Use explicit credentials if provided
+                self._login_credentials = LoginCredentials(_env_file=None, accountid=account_id, apikey=api_key)
+                if env_file_credentials is not None:
+                    logger.warning("When using explicit credentials, env_file_credentials is ignored")
             else:
-                self._login_credentials = LoginCredentials()
-
-            if account_id is not None:
-                self._login_credentials.accountid = account_id
-
-            if api_key is not None:
-                self._login_credentials.apikey = api_key
+                # Otherwise get credentials from .env file
+                if env_file_credentials is not None:
+                    self._login_credentials = LoginCredentials(_env_file=env_file_credentials)
+                else:
+                    self._login_credentials = LoginCredentials()
 
             # Set connection configuration
             if env_file_connection is not None:
-                self._connection_configuration = ConnectionConfiguration(
-                    _env_file=env_file_connection
-                )
+                self._connection_configuration = ConnectionConfiguration(_env_file=env_file_connection)
             else:
                 self._connection_configuration = ConnectionConfiguration()
         except ValidationError as ex:
@@ -73,31 +75,39 @@ class XRTC:
         """Open requests connection and login."""
         self._session = requests.Session()
 
-        login_response = self._session.post(
-            url=self._connection_configuration.login_url,
-            data=self._login_credentials.json(),
-            timeout=(
-                self._connection_configuration.requests_connect,
-                self._connection_configuration.requests_read,
-            ),
-        )
+        try:
+            login_response = self._session.post(
+                url=self._connection_configuration.login_url,
+                data=self._login_credentials.json(),
+                timeout=(
+                    self._connection_configuration.requests_connect,
+                    self._connection_configuration.requests_read,
+                ),
+            )
 
-        if login_response.status_code != 200:
-            if login_response.status_code in (400, 401):
-                error_message = ReceivedError.parse_raw(login_response.text).error.errormessage
+            if login_response.status_code != 200:
+                if login_response.status_code in (400, 401):
+                    error_message = ReceivedError.parse_raw(login_response.text).error.errormessage
+                    self._session.close()
+                    raise XRTCException(
+                        message=error_message,
+                        url=self._connection_configuration.login_url,
+                    )
+
                 self._session.close()
                 raise XRTCException(
-                    message=f"Login failed. {error_message}",
+                    message=f"Code: {login_response.status_code}",
                     url=self._connection_configuration.login_url,
                 )
 
+            self.login_time = LoginResponseData.parse_raw(login_response.text).servertimestamp
+
+        except Exception as ex:
             self._session.close()
             raise XRTCException(
-                message=f"Login failed. Code: {login_response.status_code}",
+                message=f"Login failed. Message: {str(ex)}",
                 url=self._connection_configuration.login_url,
-            )
-
-        self.login_time = LoginResponseData.parse_raw(login_response.text).servertimestamp
+            ) from ex
 
         return self
 
@@ -112,36 +122,46 @@ class XRTC:
             items (list[dict]): list of items to set, e.g. [{"portalid": "exampleportal", "payload": "examplepayload"}]
         """
         # Parse request parameters
-        request_parameters = SetItemRequest(items=items).json(exclude_defaults=True)
+        try:
+            request_parameters = SetItemRequest(items=items).json(exclude_defaults=True)
+        except Exception as ex:
+            logger.warning("Set item failed. Request conversion to json: %s", str(ex))
+            return
 
         if len(request_parameters) > self._connection_configuration.serialized_json_size_max:
-            raise XRTCException(
-                message="Set item failed. Serialized json request size exceeds API limit",
-                url=self._connection_configuration.set_url,
-            )
+            logger.warning("Set item failed. Serialized json request size exceeds API limit")
+            return
 
         # Make request
-        set_item_response = self._session.post(
-            url=self._connection_configuration.set_url,
-            data=request_parameters,
-            timeout=(
-                self._connection_configuration.requests_connect,
-                self._connection_configuration.requests_read,
-            ),
-        )
+        try:
+            set_item_response = self._session.post(
+                url=self._connection_configuration.set_url,
+                data=request_parameters,
+                timeout=(
+                    self._connection_configuration.requests_connect,
+                    self._connection_configuration.requests_read,
+                ),
+            )
 
-        if set_item_response.status_code != 200:
-            if set_item_response.status_code in (400, 401):
-                error_message = ReceivedError.parse_raw(set_item_response.text).error.errormessage
+            if set_item_response.status_code != 200:
+                if set_item_response.status_code in (400, 401):
+                    error_message = ReceivedError.parse_raw(set_item_response.text).error.errormessage
+                    raise XRTCException(
+                        message=error_message,
+                        url=self._connection_configuration.set_url,
+                    )
+
                 raise XRTCException(
-                    message=f"Set item failed. {error_message}",
+                    message=f"Code: {set_item_response.status_code}",
                     url=self._connection_configuration.set_url,
                 )
 
+        except Exception as ex:
+            self._session.close()
             raise XRTCException(
-                message=f"Set item failed. Code: {set_item_response.status_code}",
+                message=f"Set item failed. Message: {str(ex)}",
                 url=self._connection_configuration.set_url,
-            )
+            ) from ex
 
     def get_item(
         self,
@@ -159,59 +179,65 @@ class XRTC:
             cutoff (int): time in ms to define the maximum relative age of the items, default -1 (no effect)
 
         Returns:
-            Item (iterable), e.g. [{"portalid": "exampleportal", "payload": "examplepayload", "servertimestamp": 123456789}]
+            Item (iterable), e.g. [{"portalid":"exampleportal", "payload":"examplepayload", "servertimestamp":12345}]
         """
         # Parse request parameters
-        request_parameters = GetItemRequest(
-            portals=portals, mode=mode, schedule=schedule, cutoff=cutoff
-        ).json(exclude_defaults=True)
+        try:
+            request_parameters = GetItemRequest(portals=portals, mode=mode, schedule=schedule, cutoff=cutoff).json(
+                exclude_defaults=True
+            )
+        except Exception as ex:
+            logger.warning("Get item failed. Request conversion to json: %s", str(ex))
+            return
 
         if len(request_parameters) > self._connection_configuration.serialized_json_size_max:
-            raise XRTCException(
-                message="Get item failed. Serialized json request size exceeds API limit",
-                url=self._connection_configuration.get_url,
-            )
+            logger.warning("Get item failed. Serialized json request size exceeds API limit")
+            return
 
         # Make request
-        get_item_response = self._session.post(
-            url=self._connection_configuration.get_url,
-            data=request_parameters,
-            timeout=(
-                self._connection_configuration.requests_connect,
-                self._connection_configuration.requests_read,
-            ),
-        )
+        try:
+            get_item_response = self._session.post(
+                url=self._connection_configuration.get_url,
+                data=request_parameters,
+                timeout=(
+                    self._connection_configuration.requests_connect,
+                    self._connection_configuration.requests_read,
+                ),
+            )
 
-        if get_item_response.status_code != 200:
-            if get_item_response.status_code in (400, 401):
-                error_message = ReceivedError.parse_raw(get_item_response.text).error.errormessage
+            if get_item_response.status_code != 200:
+                if get_item_response.status_code in (400, 401):
+                    error_message = ReceivedError.parse_raw(get_item_response.text).error.errormessage
+                    raise XRTCException(
+                        message=f"Get item failed. {error_message}",
+                        url=self._connection_configuration.get_url,
+                    )
+
                 raise XRTCException(
-                    message=f"Get item failed. {error_message}",
+                    message=f"Get item failed. Code: {get_item_response.status_code}",
                     url=self._connection_configuration.get_url,
                 )
 
+            response_text = get_item_response.text
+
+            if len(response_text) > self._connection_configuration.serialized_json_size_max:
+                logger.warning("Get item failed. Serialized json response size exceeds API limit")
+                return
+            if len(response_text) == 0:
+                logger.warning("Get item failed. Empty response")
+                return
+
+            received_data = ReceivedData.parse_raw(response_text)
+
+            if received_data.items is not None:
+                for item in received_data.items:
+                    yield item
+
+        except Exception as ex:
+            self._session.close()
             raise XRTCException(
-                message=f"Get item failed. Code: {get_item_response.status_code}",
+                message=f"Get item failed. Message: {str(ex)}",
                 url=self._connection_configuration.get_url,
-            )
-
-        response_text = get_item_response.text
-
-        if len(response_text) > self._connection_configuration.serialized_json_size_max:
-            raise XRTCException(
-                message="Get item failed. Serialized json response size exceeds API limit",
-                url=self._connection_configuration.get_url,
-            )
-        elif len(response_text) == 0:
-            raise XRTCException(
-                message="Get item failed. Empty response.",
-                url=self._connection_configuration.get_url,
-            )
-
-        received_data = ReceivedData.parse_raw(response_text)
-
-        if received_data.items is not None:
-            for item in received_data.items:
-                yield item
+            ) from ex
 
         return
