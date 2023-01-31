@@ -2,7 +2,7 @@
 Data Models for XRTC: connection, login, set/get API. Pydantic is used for parsing.
 
 Connection and login credentials are loaded from environmental variables, unless there is
-a default xrtc.env file or other explicitly specified dotenv file. The explicit dotenv takes
+a default xrtc.env file or other explicitly specified dotenv files. The explicit dotenv takes
 priority over the default dotenv. Environment variables will always take priority over
 values loaded from a dotenv file.
 """
@@ -11,6 +11,9 @@ import logging
 from typing import Literal
 
 from pydantic import BaseSettings, BaseModel, Field
+
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(asctime)s %(message)s")
+logger = logging.getLogger()
 
 
 class LoginCredentials(BaseSettings):
@@ -35,7 +38,8 @@ class ConnectionConfiguration(BaseSettings):
 
     # Default timeouts and connection limits
 
-    serialized_json_size_max = 4096
+    # Max size of payload serialized from json with base64
+    serialized_json_size_max = 65536
 
     # aiohttp
     # Duration of the whole operation incl connection establishment, request sending & response reading, seconds
@@ -54,10 +58,13 @@ class ConnectionConfiguration(BaseSettings):
     aiohttp_timeout_dns_cache: int = 3600
 
     # Total number simultaneous connections to any hosts
-    aiohttp_limit_connections: int = 100
+    aiohttp_limit_connections: int = 50
 
     # Total number of concurrent requests
-    aiohttp_limit_concurrent_requests: int = 6
+    aiohttp_limit_concurrent_requests: int = 25
+
+    # Timeout for connection reusing after releasing, seconds
+    aiohttp_keepalive_timeout: float = 600
 
     # requests
     # Duration the client will wait to establish a connection to a remote machine
@@ -135,12 +142,12 @@ class XRTCException(Exception):
         """Add custom message formatting."""
         if exception is not None:
             super().__init__(exception)
-            logging.exception(self)
+            logger.exception(self)
         elif url is not None:
             self.message = "XRTC URL: " + url + ": " + message
-            logging.error(self.message)
+            logger.error(self.message)
             super().__init__(self.message)
         else:
             self.message = "XRTC: " + message
-            logging.error(self.message)
+            logger.error(self.message)
             super().__init__(self.message)

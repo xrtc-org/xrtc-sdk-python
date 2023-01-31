@@ -12,9 +12,10 @@ This is an SDK for XRTC API in Python. The SDK implements the following convenie
 - login and connection configurations loading from .env file or from the environment
 - configurations, serialized and deserialized request bodies and response data models and parser with Pydantic
 
-To start using XRTC, please obtain your free API token at [XRTC web site](https://xrtc.org)
+To start using XRTC, please obtain your free API token at [XRTC web site](https://xrtc.org/#feature)
 
-This project is sponsored by [Delta Cygni Labs Ltd](https://deltacygnilabs.com) with the headquarters in Tampere, Finland.
+This project is maintained by [Delta Cygni Labs Ltd](https://deltacygnilabs.com) with the headquarters in Tampere,
+Finland.
 
 ## Installation
 
@@ -28,22 +29,22 @@ Update from Pypi if you have already installed the package:
 pip install xrtc --upgrade
 ```
 
-Installation from source:
+Installation from source (advanced users only):
 ```
 pip install .
 ```
 
-Installation from source if you want the package to be editable:
+Installation from source if you want the package to be editable (advanced users only):
 ```
 pip install . -e
 ```
 
 ## Login credentials and connection URLs
 
-Login credentials are taken from the environment or from a `.env` file
-(e.g. `xrtc.env`) placed to the work directory. 
+Login credentials you can provide as arguments to the contexts or specify 
+in a dotenv file (by default `xrtc.env`) placed to the work directory. 
 
-Example of `.env` file content:
+Example of `xrtc.env` file content:
 ```
 # XRTC credentials
 ACCOUNT_ID=AC0987654321012345
@@ -72,8 +73,8 @@ The same example with the async context manager:
 ```
 from xrtc import AXRTC
 
-# To use async context manager, define an async function and run it
 async def main():
+    """Async function that enables the use of async context manager."""
 
     # Get your free account and API key from https://xrtc.org
     async with AXRTC(account_id="AC0987654321012345", api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") as xrtc:
@@ -92,7 +93,8 @@ A more sophisticated example for continuous setting and getting with XRTC and as
 Measures end-to-end latency in ms. Note different get item modes (watch, probe) as well as cutoff
 parameter to discard the items from previous runs. Two set of credentials are used for setting
 and getting: the `accountid` is the same, but the `apikey` are different (request them twice from
-[XRTC web site](https://xrtc.org)), and the credentials are loaded from .env files.
+[XRTC web site]((https://xrtc.org/#feature))), and the credentials are loaded from the respective
+dotenv files.
 ```
 import asyncio
 from time import time

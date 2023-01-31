@@ -12,7 +12,7 @@ setup(
     long_description_content_type="text/markdown",
     long_description=long_description,
     package_dir={"": "src"},
-    version="0.1.4",
+    version="0.1.5",
     author="Delta Cygni Labs Ltd",
     url="https://xrtc.org",
     download_url="https://github.com/xrtc-org/xrtc-sdk-python",
@@ -20,14 +20,14 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         # Read .env files to environment
-        "python-dotenv >= 0.21.0",
+        "python-dotenv >= 0.21.1",
         # Load and parse settings from environment
-        "pydantic >= 1.10.2",
+        "pydantic >= 1.10.4",
         # HTTP requests
-        "requests >= 2.28.1",
+        "requests >= 2.28.2",
         # Async HTTP requests
         "aiohttp >= 3.8.3",
         # SSL root certificates (for aiohttp)
-        "certifi >= 2022.9.24",
+        "certifi >= 2022.12.7",
     ],
 )

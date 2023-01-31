@@ -1,11 +1,12 @@
 """Example code for async set and get with XRTC."""
 from xrtc import AXRTC
 
-# To use async context manager, define an async function and run it
-async def main():
 
+async def main():
+    """Async function that enables the use of async context manager."""
     # Get your free account and API key from https://xrtc.org
     async with AXRTC(account_id="AC0987654321012345", api_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") as xrtc:
+
         # Upload an item
         await xrtc.set_item(items=[{"portalid": "exampleportal", "payload": "examplepayload"}])
 
